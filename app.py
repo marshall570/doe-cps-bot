@@ -10,7 +10,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 try:
     # DRIVER
     options = Options()
-    # options.add_argument('-headless')
+    options.add_argument('-headless')
     driver = webdriver.Chrome(options=options)
     driver.implicitly_wait(5)
 
@@ -31,11 +31,14 @@ try:
         driver.find_element(By.CSS_SELECTOR, btn_busca).click()
 
         if linha == 0:
-            espera_btn_fechar = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, btn_fechar)))
+            espera_btn_fechar = WebDriverWait(driver, 5).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, btn_fechar)))
             espera_btn_fechar.click()
 
-        espera_btn_ordem = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CSS_SELECTOR, btn_ordem)))
-        ActionChains(driver).move_to_element(espera_btn_ordem).click().perform()
+        espera_btn_ordem = WebDriverWait(driver, 5).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, btn_ordem)))
+        ActionChains(driver).move_to_element(
+            espera_btn_ordem).click().perform()
 
         link_at = driver.find_element(By.CSS_SELECTOR, txt_entrada)
 
