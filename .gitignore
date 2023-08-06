@@ -3,3 +3,4 @@ geckodriver.log
 *.csv
 .env
 *.old
+!template.csv
