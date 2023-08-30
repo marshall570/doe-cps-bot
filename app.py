@@ -2,9 +2,6 @@ import pandas
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.action_chains import ActionChains
 
 
 def scroll_to_element(driver, element):
@@ -29,7 +26,6 @@ try:
     # SELECTORS
     input_busca = '#content_txtPalavrasChave'
     btn_busca = '#content_btnBuscar'
-    btn_fechar = 'div.joyride-tip-guide:nth-child(7) > div:nth-child(2) > a:nth-child(3)'
     btn_ordem = '#content_lnkOrderByData'
     txt_entrada = 'div.card:nth-child(4) > div:nth-child(1) > a:nth-child(1)'
 
@@ -39,31 +35,21 @@ try:
 
     for linha, coluna in planilha.iterrows():
         driver.get('https://www.imprensaoficial.com.br')
-        driver.find_element(By.CSS_SELECTOR, input_busca).send_keys(
-            f'nº {coluna["EDITAL"]}')
+        driver.add_cookie({"name": "PortalIOJoyRide", "value": "ridden"})
+
+        driver.find_element(By.CSS_SELECTOR, input_busca).send_keys(f'\"nº {coluna["EDITAL"]}\"')
         driver.find_element(By.CSS_SELECTOR, btn_busca).click()
 
-        if linha == 0:
-            espera_btn_fechar = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, btn_fechar)))
-            scroll_to_element(driver, espera_btn_fechar)
-            ActionChains(driver).move_to_element(
-                espera_btn_fechar).click().perform()
-
-        espera_btn_ordem = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, btn_ordem)))
-        scroll_to_element(driver, espera_btn_ordem)
-        ActionChains(driver).move_to_element(
-            espera_btn_ordem).click().perform()
+        scroll_to_element(driver, driver.find_element(By.CSS_SELECTOR, btn_ordem))
+        driver.find_element(By.CSS_SELECTOR, btn_ordem).click()
 
         link_at = driver.find_element(By.CSS_SELECTOR, txt_entrada)
-
         data_at = link_at.get_attribute('textContent').strip()
         data_at = data_at.split('-')
         coluna['ULTIMA AT'] = data_at[0].strip()
-        print(f'{coluna["EDITAL"]} | {coluna["ULTIMA AT"]} - {coluna["MATERIA"]}')
-
         coluna['LINK'] = link_at.get_attribute('href').strip()
+
+        print(f'{coluna["EDITAL"]} | {coluna["ULTIMA AT"]} - {coluna["MATERIA"]}')
 
     driver.quit()
 
