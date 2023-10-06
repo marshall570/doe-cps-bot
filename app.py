@@ -1,4 +1,6 @@
 import pandas
+from colorama import Fore
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
@@ -30,6 +32,7 @@ try:
     txt_entrada = 'div.card:nth-child(4) > div:nth-child(1) > a:nth-child(1)'
 
     # ROTINA
+    today = datetime.today().strftime('%d/%m/%Y')
     planilha = pandas.read_csv('./editais.csv', dtype=str)
     print('ÚLTIMAS ATUALIZAÇÕES')
 
@@ -49,7 +52,10 @@ try:
         coluna['ULTIMA AT'] = data_at[0].strip()
         coluna['LINK'] = link_at.get_attribute('href').strip()
 
-        print(f'{coluna["EDITAL"]} | {coluna["ULTIMA AT"]} - {coluna["MATERIA"]}')
+        if coluna["ULTIMA AT"] == today:
+            print(Fore.GREEN + f'{coluna["EDITAL"]} | {coluna["ULTIMA AT"]} - {coluna["MATERIA"]}')
+        else:
+            print(Fore.YELLOW + f'{coluna["EDITAL"]} | {coluna["ULTIMA AT"]} - {coluna["MATERIA"]}')
 
     driver.quit()
 
