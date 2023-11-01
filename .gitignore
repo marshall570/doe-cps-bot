@@ -1,6 +1,6 @@
 .venv/
-geckodriver.log
+__pycache__/
+*.log
 *.csv
 .env
-*.old
 !template.csv

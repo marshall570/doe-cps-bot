@@ -1,6 +1,8 @@
 import os
 import pandas
 import requests
+import logging
+from updates import Updates
 from dotenv import load_dotenv
 from datetime import datetime
 from selenium import webdriver
@@ -8,19 +10,25 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.by import By
 
 
-def scrollar_ate_elemento(driver, element):
-    x = element.location['x']   
+logging.basicConfig(
+    handlers=[logging.FileHandler('app.log'), logging.StreamHandler()],
+    encoding='utf-8',
+    format='%(asctime)s [%(levelname)s: %(filename)s (line %(lineno)d)] %(message)s',
+    datefmt='%d/%m/%Y - %H:%M:%S',
+    level=logging.INFO
+)
+
+
+def scroll_to_element(driver, element):
+    x = element.location['x']
     y = element.location['y']
-    scroll_by_coord = 'window.scrollTo(%s,%s);' % (
-        x,
-        y
-    )
+    scroll_by_coord = f'window.scrollTo({x},{y});'
     scroll_nav_out_of_way = 'window.scrollBy(0, -120);'
     driver.execute_script(scroll_by_coord)
     driver.execute_script(scroll_nav_out_of_way)
 
 
-def iniciar_driver():
+def init_driver():
     options = Options()
     options.add_argument('-headless')
     driver = webdriver.Firefox(options=options)
@@ -29,65 +37,69 @@ def iniciar_driver():
     return driver
 
 
-def enviar_mensagem(id, atualizados, nao_atualizados):
-    mensagem = f'{atualizados}\n\n{nao_atualizados}\n\n<i>Mais atualizações amanhã!</i>'
-    load_dotenv()
-    TOKEN = os.getenv('BOT-TOKEN')
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage?chat_id={id}&parse_mode=html&text={mensagem}"
+def send_message(id, updated, not_updated):
+    message = f'{updated}\n\n{not_updated}\n\n<i>Mais atualizações amanhã!</i>'
+    url = f"https://api.telegram.org/bot{os.getenv('BOT-TOKEN')}/sendMessage?chat_id={id}&parse_mode=html&text={message}"
     requests.get(url).json()
 
 
-def scrap_editais(pessoa, id):
+def scrap_routine(person, id):
     try:
-        hoje = datetime.today().strftime('%d/%m/%Y')
-        mensagem_atualizados = f'🎯 <b>EDITAIS COM ATUALIZAÇÃO EM {hoje}</b>'
-        mensagem_nao_atualizados = '⏳ <b>EDITAIS SEM ATUALIZAÇÃO</b>'
+        today = datetime.today().strftime('%d/%m/%Y')
+        message_updated = f'🎯 <b>EDITAIS COM ATUALIZAÇÃO EM {today}</b>'
+        message_not_updated = '⏳ <b>EDITAIS SEM ATUALIZAÇÃO</b>'
 
-        input_busca = '#content_txtPalavrasChave'
-        btn_busca = '#content_btnBuscar'
-        btn_ordem = '#content_lnkOrderByData'
-        txt_entrada = 'div.card:nth-child(4) > div:nth-child(1) > a:nth-child(1)'  
+        input_search = '#content_txtPalavrasChave'
+        btn_search = '#content_btnBuscar'
+        btn_order = '#content_lnkOrderByData'
+        txt_entry = 'div.card:nth-child(4) > div:nth-child(1) > a:nth-child(1)'
 
-        planilha = pandas.read_csv(f'./editais-{pessoa.lower()}.csv', dtype=str)
-        driver = iniciar_driver()
+        spreadsheet = pandas.read_csv(
+            f'./editais-{person.lower()}.csv',
+            dtype=str
+        )
+        
+        driver = init_driver()
 
-        for linha, coluna in planilha.iterrows():
+        for row, column in spreadsheet.iterrows():
             driver.get('https://www.imprensaoficial.com.br')
             driver.add_cookie({"name": "PortalIOJoyRide", "value": "ridden"})
 
-            driver.find_element(By.CSS_SELECTOR, input_busca).send_keys(f'\"nº {coluna["EDITAL"]}\"')
-            driver.find_element(By.CSS_SELECTOR, btn_busca).click()
-            
-            scrollar_ate_elemento(driver, driver.find_element(By.CSS_SELECTOR, btn_ordem))
-            driver.find_element(By.CSS_SELECTOR, btn_ordem).click()
-            link_at = driver.find_element(By.CSS_SELECTOR, txt_entrada)
-            
-            data_at = link_at.get_attribute('textContent').strip()
-            data_at = data_at.split('-')
-            coluna['ULTIMA AT'] = data_at[0].strip()
-            coluna['LINK'] = link_at.get_attribute('href').strip()
+            driver.find_element(By.CSS_SELECTOR, input_search).send_keys(f'\"nº {column["EDITAL"]}\"')
+            driver.find_element(By.CSS_SELECTOR, btn_search).click()
 
-            if coluna["ULTIMA AT"] == hoje:
-                mensagem_atualizados += f'''\n<b>{coluna['EDITAL']}</b> | <i>{coluna['MATERIA']}</i>'''
+            scroll_to_element(driver, driver.find_element(By.CSS_SELECTOR, btn_order))
+            driver.find_element(By.CSS_SELECTOR, btn_order).click()
+            entry_link = driver.find_element(By.CSS_SELECTOR, txt_entry)
+
+            entry_date = entry_link.get_attribute('textContent').strip()
+            entry_date = entry_date.split('-')
+            column['ULTIMA AT'] = entry_date[0].strip()
+            column['LINK'] = entry_link.get_attribute('href').strip()
+
+            if column["ULTIMA AT"] == today:
+                message_updated += f'''\n<b>{column['EDITAL']}</b> | <i>{column['MATERIA']}</i>'''
             else:
-                mensagem_nao_atualizados += f'''\n<b>{coluna['EDITAL']}</b> | <i>{coluna['MATERIA']}</i>'''
+                message_not_updated += f'''\n<b>{column['EDITAL']}</b> | <i>{column['MATERIA']}</i>'''
 
-        if mensagem_atualizados.find('|') == -1:
-            mensagem_atualizados += '\n<i>Não houveram atualizações nos editais</i>'
+        if message_updated.find('|') == -1:
+            message_updated += '\n<i>Não houveram atualizações nos editais</i>'
 
-        if mensagem_nao_atualizados.find('|') == -1:
-            mensagem_nao_atualizados += '\n<i>Todos os editais tiveram atualizações</i>'
+        if message_not_updated.find('|') == -1:
+            message_not_updated += '\n<i>Todos os editais tiveram atualizações</i>'
 
-        driver.quit()
+        spreadsheet.to_csv(f'./editais-{person.lower()}.csv', index=False)
+        send_message(id, message_updated, message_not_updated)
+        logging.info(f'{person.upper()}: OK')
 
-        planilha.to_csv(f'./editais-{pessoa.lower()}.csv', index=False)
-        enviar_mensagem(id, mensagem_atualizados, mensagem_nao_atualizados)
-        print(f'{pessoa.upper()}: OK')
-    
     except Exception as error:
-        driver.quit()
-        print(f'{pessoa.upper()}: {error}')
+        logging.critical(f'{person.upper()}: {error}')
     
+    finally:
+        driver.quit()
+
+
 load_dotenv()
-scrap_editais(pessoa='gustavo', id=os.getenv('ID-GUSTAVO'))
-scrap_editais(pessoa='ana', id=os.getenv('ID-GUSTAVO'))
+Updates.get_updates(os.getenv('BOT-TOKEN'))
+# scrap_routine('gustavo', os.getenv('ID-GUSTAVO'))
+# scrap_routine('ana', os.getenv('ID-ANA'))
