@@ -76,8 +76,8 @@ def send_no_publication(id, date):
     requests.get(url).json()
 
 
-def send_updates(id, updated, not_updated):
-    message = f'{updated}\n\n\n\n{not_updated}\n\n<i>Mais atualizações amanhã!</i>'
+def send_updates(id, updated):
+    message = f'{updated}\n\n<i>Mais atualizações amanhã!</i>'
     url = f"https://api.telegram.org/bot{os.getenv('BOT-TOKEN')}/sendMessage?chat_id={id}&parse_mode=html&text={message}"
     requests.get(url).json()
 
@@ -88,8 +88,7 @@ def scrap_routine(person, id):
         today = datetime.today().strftime('%d/%m/%Y')
         
         if has_publication(driver):
-            message_updated = f'🎯 <b>EDITAIS COM ATUALIZAÇÃO EM {today}</b>'
-            message_not_updated = '⏳ <b>EDITAIS SEM ATUALIZAÇÃO</b>'
+            message = f'🎯 <b>EDITAIS COM ATUALIZAÇÃO EM {today}</b>'
 
             spreadsheet = pandas.read_csv(
                 f'./editais-{person.lower()}.csv',
@@ -99,18 +98,13 @@ def scrap_routine(person, id):
             for index, row in spreadsheet.iterrows():
                 process_edicts(driver, row)
                 if row["ULTIMA AT"] == today:
-                    message_updated += f'''\n<b>{row['EDITAL']}</b> | <i>{row['MATERIA']}</i>'''
-                else:
-                    message_not_updated += f'''\n<b>{row['EDITAL']}</b> | <i>{row['MATERIA']}</i> | <i>Última at. em: {row['ULTIMA AT']}</i>\n'''
-
-            if message_updated.find('|') == -1:
-                message_updated += '\n<i>Não houveram atualizações nos editais</i>'
-
-            if message_not_updated.find('|') == -1:
-                message_not_updated += '\n<i>Todos os editais tiveram atualizações</i>'
+                    message += f'''\n<b>{row['EDITAL']}</b> | <i>{row['MATERIA']}</i>'''
+            
+            if message.find('|') == -1:
+                message = f'⏳ <b>EDITAIS SEM ATUALIZAÇÃO EM {today}</b>\n<i>Não houveram atualizações nos editais cadastrados :(</i>'
 
             spreadsheet.to_csv(f'./editais-{person.lower()}.csv', index=False)
-            send_updates(id, message_updated, message_not_updated)
+            send_updates(id, message)
 
         else:
             send_no_publication(id, today)
@@ -125,3 +119,6 @@ def scrap_routine(person, id):
 
 
 load_dotenv()
+# Updates.get_updates(os.getenv('BOT-TOKEN'))
+# scrap_routine('gustavo', os.getenv('ID-GUSTAVO'))
+# scrap_routine('ana', os.getenv('ID-ANA'))
