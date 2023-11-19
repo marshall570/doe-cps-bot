@@ -1,14 +1,17 @@
 import os
+import logging
+from datetime import datetime
+
 import pandas
 import requests
-import logging
-from updates import Updates
 from dotenv import load_dotenv
-from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 
+
+from updates import Updates
 
 logging.basicConfig(
     handlers=[logging.FileHandler('app.log'), logging.StreamHandler()],
@@ -29,10 +32,17 @@ def scroll_to_element(driver, element):
 
 
 def init_driver():
-    options = Options()
-    options.add_argument('-headless')
-    driver = webdriver.Firefox(options=options)
-    driver.implicitly_wait(10)
+    if os.path.exists('/usr/bin/firefox'):
+        options = FirefoxOptions()
+        options.add_argument('-headless')
+        driver = webdriver.Firefox(options=options)
+        driver.implicitly_wait(10)
+    else:
+        options = ChromeOptions()
+        options.binary_location = os.getenv('CHROME-PATH')
+        options.add_argument('-headless')
+        driver = webdriver.Chrome(options=options)
+        driver.implicitly_wait(10)
 
     return driver
 
@@ -59,8 +69,10 @@ def process_edicts(driver, row):
 
     driver.find_element(By.CSS_SELECTOR, input_search).send_keys(f'\"nº {row["EDITAL"]}\"')
     driver.find_element(By.CSS_SELECTOR, btn_search).click()
-
-    scroll_to_element(driver, driver.find_element(By.CSS_SELECTOR, btn_order))
+    
+    if os.path.exists('/usr/bin/firefox'):
+        scroll_to_element(driver, driver.find_element(By.CSS_SELECTOR, btn_order))
+    
     driver.find_element(By.CSS_SELECTOR, btn_order).click()
     entry_link = driver.find_element(By.CSS_SELECTOR, txt_entry)
 
@@ -101,7 +113,7 @@ def scrap_routine(person, id):
                     message += f'''\n<b>{row['EDITAL']}</b> | <i>{row['MATERIA']}</i>'''
             
             if message.find('|') == -1:
-                message = f'⏳ <b>EDITAIS SEM ATUALIZAÇÃO EM {today}</b>\n<i>Não houveram atualizações nos editais cadastrados :(</i>'
+                message = f'⏳ <b>EDITAIS SEM ATUALIZAÇÃO EM {today}</b>\n\n<i>Não houveram atualizações nos editais cadastrados :(</i>'
 
             spreadsheet.to_csv(f'./editais-{person.lower()}.csv', index=False)
             send_updates(id, message)
@@ -119,6 +131,6 @@ def scrap_routine(person, id):
 
 
 load_dotenv()
-# Updates.get_updates(os.getenv('BOT-TOKEN'))
-# scrap_routine('gustavo', os.getenv('ID-GUSTAVO'))
-# scrap_routine('ana', os.getenv('ID-ANA'))
+Updates.get_updates(os.getenv('BOT-TOKEN'))
+scrap_routine('gustavo', os.getenv('ID-GUSTAVO'))
+scrap_routine('ana', os.getenv('ID-ANA'))
