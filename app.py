@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 from updates import Updates
 
+
 logging.basicConfig(
     handlers=[logging.FileHandler('app.log'), logging.StreamHandler()],
     encoding='utf-8',
@@ -48,7 +49,7 @@ def init_driver():
 
 
 def has_publication(driver):
-    try:        
+    try:
         driver.get('https://www.imprensaoficial.com.br')
         txt_publication = driver.find_element(By.CSS_SELECTOR, '#txtError').get_attribute('style')
 
@@ -69,10 +70,10 @@ def process_edicts(driver, row):
 
     driver.find_element(By.CSS_SELECTOR, input_search).send_keys(f'\"nº {row["EDITAL"]}\"')
     driver.find_element(By.CSS_SELECTOR, btn_search).click()
-    
+
     if os.path.exists('/usr/bin/firefox'):
         scroll_to_element(driver, driver.find_element(By.CSS_SELECTOR, btn_order))
-    
+
     driver.find_element(By.CSS_SELECTOR, btn_order).click()
     entry_link = driver.find_element(By.CSS_SELECTOR, txt_entry)
 
@@ -98,7 +99,7 @@ def scrap_routine(person, id):
     try:
         driver = init_driver()
         today = datetime.today().strftime('%d/%m/%Y')
-        
+
         if has_publication(driver):
             message = f'🎯 <b>EDITAIS COM ATUALIZAÇÃO EM {today}</b>'
 
@@ -111,7 +112,7 @@ def scrap_routine(person, id):
                 process_edicts(driver, row)
                 if row["ULTIMA AT"] == today:
                     message += f'''\n<b>{row['EDITAL']}</b> | <i>{row['MATERIA']}</i>'''
-            
+
             if message.find('|') == -1:
                 message = f'⏳ <b>EDITAIS SEM ATUALIZAÇÃO EM {today}</b>\n\n<i>Não houveram atualizações nos editais cadastrados :(</i>'
 
@@ -122,10 +123,10 @@ def scrap_routine(person, id):
             send_no_publication(id, today)
 
         logging.info(f'{person.upper()}: OK')
-    
+
     except Exception as error:
         logging.critical(f'{person.upper()}: {error}')
-    
+
     finally:
         driver.quit()
 
